@@ -48,7 +48,7 @@ defaultRules:
   create: true
   rules:
     alertmanager: true
-    etcd: true
+    etcd: false
     configReloaders: true
     general: true
     k8sContainerCpuUsageSecondsTotal: true
@@ -1454,7 +1454,7 @@ kubelet:
 ## Component scraping the kube controller manager
 ##
 kubeControllerManager:
-  enabled: true
+  enabled: false
 
   ## If your kube controller manager is not deployed as a pod, specify IPs it can be found on
   ##
@@ -1729,7 +1729,7 @@ kubeDns:
 ## Component scraping etcd
 ##
 kubeEtcd:
-  enabled: true
+  enabled: false
 
   ## If your etcd is not deployed as a pod, specify IPs it can be found on
   ##
