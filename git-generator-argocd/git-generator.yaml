@@ -10,8 +10,8 @@ spec:
       revision: main
       directories:
       - path: Helm/*
-        #- path: Helm/monitoring
-        #  exclude: true
+        # - path: Helm/monitoring
+        # exclude: true
   template:
     metadata:
       name: '{{path.basename}}'

@@ -1110,11 +1110,21 @@ grafana:
   - name: Tempo
     type: tempo
     url: http://tempo.tempo:3100
-
+    access: proxy
+    version: 1
   - name: Loki
     # Data source for Loki     
     type: loki
-    url: http://loki.loki:3100
+    url: http://loki-loki-distributed-gateway.loki
+    access: proxy
+    jsonData:
+      derivedFields:
+      - datasourceUid: tempo
+        matcherRegex: ((\d+|[a-z]+)(\d+|[a-z]+)(\d+|[a-z]+)(\d+|[a-z]+)(\d+|[a-z]+)(\d+|[a-z]+)(\d+|[a-z]+)(\d+|[a-z]+)(\d+|[a-z]+)(\d+|[a-z]+)(\d+|[a-z]+))
+        name: TraceID
+        url: $${__value.raw}
+      maxLines: 1000
+    version: 1
   # - name: prometheus-sample
   #   access: proxy
   #   basicAuth: true
