@@ -29,7 +29,6 @@ credentialsId:
 # -- Enables rendering of the helm.sh/chart label to the annotations
 renderHelmLabels: true
 
-
 controller:
   # -- Used for label app.kubernetes.io/component
   componentName: "jenkins-controller"
@@ -40,7 +39,7 @@ controller:
     repository: "jenkins/jenkins"
 
     # -- Controller image tag override; i.e., tag: "2.440.1-jdk17"
-    tag: latest
+    tag:
 
     # -- Controller image tag label
     tagLabel: jdk17
@@ -181,7 +180,7 @@ controller:
   # Set runAsUser to 1000 to let Jenkins run as non-root user 'jenkins', which exists in 'jenkins/jenkins' docker image.
   # When configuring runAsUser to a different value than 0 also set fsGroup to the same value:
   # -- Deprecated in favor of `controller.podSecurityContextOverride`. uid that jenkins runs with.
-  runAsUser: 0
+  runAsUser: 1000
 
   # -- Deprecated in favor of `controller.podSecurityContextOverride`. uid that will be used for persistent volume.
   fsGroup: 1000
@@ -190,35 +189,29 @@ controller:
   # securityContextCapabilities:
   #  drop:
   #    - NET_RAW
+  securityContextCapabilities: {}
 
-  securityContextCapabilities:
-    runAsUser: 0
-    runAsGroup: 3000
-    fsGroup: 2000
-    fsGroupChangePolicy: "OnRootMismatch"
-
-
-    # In the case of mounting an ext4 filesystem, it might be desirable to use `supplementalGroups` instead of `fsGroup` in
-    # the `securityContext` block: https://github.com/kubernetes/kubernetes/issues/67014#issuecomment-589915496
-    podSecurityContextOverride:
-      runAsUser: 0
-      runAsNonRoot: false
-      supplementalGroups: [0]
-      capabilities: {}
+  # In the case of mounting an ext4 filesystem, it might be desirable to use `supplementalGroups` instead of `fsGroup` in
+  # the `securityContext` block: https://github.com/kubernetes/kubernetes/issues/67014#issuecomment-589915496
+  # podSecurityContextOverride:
+  #   runAsUser: 1000
+  #   runAsNonRoot: true
+  #   supplementalGroups: [1000]
+  #   capabilities: {}
   # -- Completely overwrites the contents of the pod security context, ignoring the values provided for `runAsUser`, `fsGroup`, and `securityContextCapabilities`
   podSecurityContextOverride: ~
 
   # -- Allow controlling the securityContext for the jenkins container
   containerSecurityContext:
-    runAsUser: 0
-    runAsGroup: 0
-    readOnlyRootFilesystem: false
-    allowPrivilegeEscalation: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
 
   # For minikube, set this to NodePort, elsewhere uses LoadBalancer
   # Use ClusterIP if your setup includes ingress controller
   # -- k8s service type
-  serviceType: LoadBalancer
+  serviceType: ClusterIP
 
   # -- k8s service clusterIP. Only used if serviceType is ClusterIP
   clusterIp:
@@ -227,13 +220,15 @@ controller:
   # -- k8s target port
   targetPort: 8080
   # -- k8s node port. Only used if serviceType is NodePort
+  nodePort:
 
   # Use Local to preserve the client source IP and avoids a second hop for LoadBalancer and NodePort type services,
   # but risks potentially imbalanced traffic spreading.
   serviceExternalTrafficPolicy:
 
   # -- Jenkins controller service annotations
-  serviceAnnotations: {}
+  serviceAnnotations:
+
   # -- Jenkins controller custom labels for the StatefulSet
   statefulSetLabels: {}
   #   foo: bar
@@ -399,10 +394,10 @@ controller:
   # Plugins will be installed during Jenkins controller start
   # -- List of Jenkins plugins to install. If you don't want to install plugins, set it to `false`
   installPlugins:
-  - kubernetes:4214.vf10083a_42e70
+  - kubernetes:4246.v5a_12b_1fe120e
   - workflow-aggregator:596.v8c21c963d92d
   - git:5.2.2
-  - configuration-as-code:1775.v810dc950b_514
+  - configuration-as-code:1810.v9b_c30a_249a_4c
 
   # If set to false, Jenkins will download the minimum required version of all dependencies.
   # -- Download the minimum required version or latest version of all dependencies
@@ -539,6 +534,10 @@ controller:
     authorizationStrategy: |-
       loggedInUsersCanDoAnything:
         allowAnonymousRead: false
+
+    # -- Annotations for the JCasC ConfigMap
+    configMapAnnotations: {}
+
   # -- Custom init-container specification in raw-yaml format
   customInitContainers: []
   # - name: custom-init
@@ -560,7 +559,7 @@ controller:
         # -- Repository of the image that triggers the reload
         repository: kiwigrid/k8s-sidecar
         # -- Tag for the image that triggers the reload
-        tag: 1.26.2
+        tag: 1.27.4
       imagePullPolicy: IfNotPresent
       resources: {}
       #   limits:
@@ -680,12 +679,19 @@ controller:
     # -- Ingress labels
     labels: {}
     # -- Ingress annotations
-    annotations: {}
-    # kubernetes.io/ingress.class: nginx
+    annotations:
+    # kubernetes.io/ingress.class: "alb"
+    # alb.ingress.kubernetes.io/scheme: internet-facing
+    # alb.ingress.kubernetes.io/target-type: ip
+    # alb.ingress.kubernetes.io/backend-protocol: HTTP
+    # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    # alb.ingress.kubernetes.io/healthcheck-port: "8080"
+    # alb.ingress.kubernetes.io/healthcheck-path: "/"
+
     # kubernetes.io/tls-acme: "true"
     # For Kubernetes >= 1.18 you should specify the ingress-controller via the field ingressClassName
     # See https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#specifying-the-class-of-an-ingress
-    # ingressClassName: nginx
+    ingressClassName: alb
 
     # Set this path to jenkinsUriPrefix above or use annotations to rewrite path
     # -- Ingress path
@@ -974,7 +980,6 @@ agent:
   # Configure the attributes as they appear in the corresponding Java class for that type
   # https://github.com/jenkinsci/kubernetes-plugin/tree/master/src/main/java/org/csanchez/jenkins/plugins/kubernetes/volumes
   # -- Additional volumes
-
   volumes:
   # - type: ConfigMap
   #   configMapName: myconfigmap
@@ -987,17 +992,17 @@ agent:
   #   accessModes: ReadWriteOnce
   #   requestsSize: 10Gi
   #   storageClassName: mystorageclass
-  #- type: HostPath
-  #  hostPath: /var/run/docker.sock
-  #  mountPath: /var/run/docker.sock
+  # - type: HostPath
+  #   hostPath: /var/lib/containers
+  #   mountPath: /var/myapp/myhostpath
   # - type: Nfs
   #   mountPath: /var/myapp/mynfs
   #   readOnly: false
   #   serverAddress: "192.0.2.0"
   #   serverPath: /var/lib/containers
-  #- type: PVC
-  #  claimName: docker-socket
-  #  mountPath: /var/run/docker.sock
+  # - type: PVC
+  #   claimName: mypvc
+  #   mountPath: /var/myapp/mypvc
   #   readOnly: false
   # - type: Secret
   #   defaultMode: "600"
@@ -1010,7 +1015,7 @@ agent:
   # Configure the attributes as they appear in the corresponding Java class for that type
   # https://github.com/jenkinsci/kubernetes-plugin/tree/master/src/main/java/org/csanchez/jenkins/plugins/kubernetes/volumes/workspace
   # -- Workspace volume (defaults to EmptyDir)
-  workspaceVolume:
+  workspaceVolume: {}
   ## DynamicPVC example
   # - type: DynamicPVC
   #   configMapName: myconfigmap
@@ -1044,9 +1049,6 @@ agent:
     value: tcp://localhost:2376
   - name: DOCKER_CERT_PATH
     value: "/certs/client"
-  # - name: PATH
-  #   value: /usr/local/bin
-  # -- Mount a secret as environment variable
   secretEnvVars: []
   # - key: PATH
   #   optional: false # default: false
@@ -1068,7 +1070,7 @@ agent:
 
   # Doesn't allocate pseudo TTY by default
   # -- Allocate pseudo tty to the side container
-  TTYEnabled: true
+  TTYEnabled: false
   # -- Max number of agents to launch
   containerCap: 10
   # -- Agent Pod base name
@@ -1094,6 +1096,8 @@ agent:
 
   # -- Defines how the raw yaml field gets merged with yaml definitions from inherited pod templates. Possible values: "merge" or "override"
   yamlMergeStrategy: "override"
+  # -- Controls whether the defined yaml merge strategy will be inherited if another defined pod template is configured to inherit from the current one
+  inheritYamlMergeStrategy: false
   # -- Timeout in seconds for an agent to be online
   connectTimeout: 100
   # -- Annotations to apply to the pod
@@ -1203,7 +1207,7 @@ persistence:
   # Requires persistence.enabled: true
   # If defined, PVC must be created manually before volume will be bound
   # -- Provide the name of a PVC
-  existingClaim: "efs-claim"
+  existingClaim:
 
   # jenkins data Persistent Volume Storage Class
   # If defined, storageClassName: <storageClass>
@@ -1211,29 +1215,28 @@ persistence:
   # If undefined (the default) or set to null, no storageClassName spec is
   #   set, choosing the default provisioner (gp2 on AWS, standard on GKE, AWS & OpenStack)
   # -- Storage class for the PVC
-  storageClass: "efs-sc"
+  storageClass:
   # -- Annotations for the PVC
   annotations: {}
   # -- Labels for the PVC
-  labels: 
+  labels: {}
   # -- The PVC access mode
-  accessMode: "ReadWriteMany"
+  accessMode: "ReadWriteOnce"
   # -- The size of the PVC
   size: "8Gi"
 
   # ref: https://kubernetes.io/docs/concepts/storage/volume-pvc-datasource/
   # -- Existing data source to clone PVC from
-  dataSource: 
-    # name: "efs-claim"
-    # kind: PersistentVolumeClaim
+  dataSource: {}
+  #   name: PVC-NAME
+  #   kind: PersistentVolumeClaim
 
   # -- SubPath for jenkins-home mount
   subPath:
   # -- Additional volumes
-  volumes:
-
-  #- name: docker-socket
-  #  emptyDir: {}
+  volumes: []
+  #  - name: nothing
+  #    emptyDir: {}
 
   # -- Additional mounts
   mounts: []

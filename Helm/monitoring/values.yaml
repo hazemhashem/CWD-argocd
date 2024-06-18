@@ -48,7 +48,7 @@ defaultRules:
   create: true
   rules:
     alertmanager: true
-    etcd: false
+    etcd: true
     configReloaders: true
     general: true
     k8sContainerCpuUsageSecondsTotal: true
@@ -62,7 +62,7 @@ defaultRules:
     kubeApiserverBurnrate: true
     kubeApiserverHistogram: true
     kubeApiserverSlos: true
-    kubeControllerManager: false
+    kubeControllerManager: true
     kubelet: true
     kubeProxy: true
     kubePrometheusGeneral: true
@@ -71,7 +71,7 @@ defaultRules:
     kubernetesResources: true
     kubernetesStorage: true
     kubernetesSystem: true
-    kubeSchedulerAlerting: false
+    kubeSchedulerAlerting: true
     kubeSchedulerRecording: true
     kubeStateMetrics: true
     network: true
@@ -274,6 +274,10 @@ alertmanager:
   ## Api that prometheus will use to communicate with alertmanager. Possible values are v1, v2
   ##
   apiVersion: v2
+
+  ## @param alertmanager.enableFeatures Enable access to Alertmanager disabled features.
+  ##
+  enableFeatures: []
 
   ## Service account for Alertmanager to use.
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
@@ -1056,6 +1060,7 @@ grafana:
       defaultDatasourceEnabled: true
       isDefaultDatasource: true
 
+      name: Prometheus
       uid: prometheus
 
       ## URL of prometheus datasource
@@ -1090,6 +1095,7 @@ grafana:
       # traceIdLabelName: trace_id
       alertmanager:
         enabled: true
+        name: Alertmanager
         uid: alertmanager
         handleGrafanaManagedAlerts: false
         implementation: prometheus
@@ -1464,7 +1470,7 @@ kubelet:
 ## Component scraping the kube controller manager
 ##
 kubeControllerManager:
-  enabled: false
+  enabled: true
 
   ## If your kube controller manager is not deployed as a pod, specify IPs it can be found on
   ##
@@ -1739,7 +1745,7 @@ kubeDns:
 ## Component scraping etcd
 ##
 kubeEtcd:
-  enabled: false
+  enabled: true
 
   ## If your etcd is not deployed as a pod, specify IPs it can be found on
   ##
@@ -1844,7 +1850,7 @@ kubeEtcd:
 ## Component scraping kube scheduler
 ##
 kubeScheduler:
-  enabled: false
+  enabled: true
 
   ## If your kube scheduler is not deployed as a pod, specify IPs it can be found on
   ##
@@ -1946,7 +1952,7 @@ kubeScheduler:
 ## Component scraping kube proxy
 ##
 kubeProxy:
-  enabled: false
+  enabled: true
 
   ## If your kube proxy is not deployed as a pod, specify IPs it can be found on
   ##
@@ -2498,6 +2504,12 @@ prometheusOperator:
         runAsUser: 2000
         seccompProfile:
           type: RuntimeDefault
+      ## Service account for Prometheus Operator Webhook Job Patch to use.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      ##
+      serviceAccount:
+        create: true
+        automountServiceAccountToken: true
 
     # Security context for create job container
     createSecretJob:
@@ -2872,7 +2884,7 @@ prometheusOperator:
   thanosImage:
     registry: quay.io
     repository: thanos/thanos
-    tag: v0.35.0
+    tag: v0.35.1
     sha: ""
 
   ## Set a Label Selector to filter watched prometheus and prometheusAgent
@@ -3375,6 +3387,15 @@ prometheus:
   ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#prometheusspec
   ##
   prometheusSpec:
+    ## Statefulset's persistent volume claim retention policy
+    ## pvcDeleteOnStsDelete and pvcDeleteOnStsScale determine whether
+    ## statefulset's PVCs are deleted (true) or retained (false) on scaling down
+    ## and deleting statefulset, respectively. Requires 1.27.0+.
+    ## Ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#persistentvolumeclaim-retention
+    persistentVolumeClaimRetentionPolicy: {}
+    #  whenDeleted: Retain
+    #  whenScaled: Retain
+
     ## If true, pass --storage.tsdb.max-block-duration=2h to prometheus. This is already done if using Thanos
     ##
     disableCompaction: false
@@ -3561,7 +3582,7 @@ prometheus:
     ## prometheus resource to be created with selectors based on values in the helm deployment,
     ## which will also match the servicemonitors created
     ##
-    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: true
 
     ## ServiceMonitors to be selected for target discovery.
     ## If {}, select all ServiceMonitors
@@ -4075,7 +4096,7 @@ prometheus:
     ## Defines the maximum time that the `prometheus` container's startup probe
     ## will wait before being considered failed. The startup probe will return
     ## success after the WAL replay is complete. If set, the value should be
-    ## greater than 60 (seconds). Otherwise it will be equal to 600 seconds (15
+    ## greater than 60 (seconds). Otherwise it will be equal to 900 seconds (15
     ## minutes).
     maximumStartupDurationSeconds: 0
 
@@ -4425,7 +4446,7 @@ thanosRuler:
     image:
       registry: quay.io
       repository: thanos/thanos
-      tag: v0.35.0
+      tag: v0.35.1
       sha: ""
 
     ## Namespaces to be selected for PrometheusRules discovery.
